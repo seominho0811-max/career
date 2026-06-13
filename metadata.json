@@ -1,0 +1,6 @@
+{
+  "name": "실시간 진로 및 희망학과 대시보드",
+  "description": "구글 스프레드시트 기반 학년별/학급별 진로 및 희망학과 실시간 대시보드 및 복사 가능한 Google Apps Script 코드 생성기",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

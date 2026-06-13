@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>진로 · 희망학과 실시간 대시보드</title>
+    <!-- Tailwind CSS (Play CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap');
+      
+      body {
+        font-family: 'Noto Sans KR', 'Inter', sans-serif;
+      }
+      .font-mono {
+        font-family: 'JetBrains Mono', monospace;
+      }
+      /* Custom fine scrollbar design */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 8px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 8px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+    <!-- React Mount Root -->
+    <div id="root"></div>
+
+    <!-- Core CDN dependencies (React, ReactDOM, Babel Standalone) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- React App Implementation inside Babel Script -->
+    <script type="text/babel">
+      const { useState, useMemo, useEffect } = React;
+
+      // Fallback Seed Data (mock data) to prevent blank screen if Google Spreadsheet is empty or loading
+      const initialMockStudents = [
+        { id: "1", stuNo: "1101", name: "김하람", dept1: "컴퓨터공학과", dept2: "소프트웨어학과", careersRaw: "AI 엔지니어, 데이터 분석가", track: "경영경제", ref1: "SW경진대회 수상", ref2: "C언어 이수", ref3: "진로 부합도 상" },
+        { id: "2", stuNo: "1102", name: "안정수", dept1: "의예과", dept2: "생명공학과", careersRaw: "심장전문의, 신약연구원", track: "의료보건", ref1: "생물 동아리 부장", ref2: "의료 봉사 40시간", ref3: "화학I 완독", ref4: "우수 연계과정" },
+        { id: "3", stuNo: "1201", name: "박소미", dept1: "미디어커뮤니케이션학과", dept2: "시각디자인학과", careersRaw: "방송기자, 미디어 크리에이터", track: "언론광고", ref1: "교내 아나운서", ref2: "UCC 은상" },
+        { id: "4", stuNo: "1202", name: "한민우", dept1: "기계공학과", dept2: "인공지능학과", careersRaw: "로봇공학자, 자율주행 엔지니어", track: "정보기술공학" },
+        { id: "5", stuNo: "2101", name: "최서은", dept1: "간호학과", dept2: "심리학과", careersRaw: "전문간호사, 임상심리사, 응급구조사", track: "의료보건" },
+        { id: "6", stuNo: "2102", name: "윤지환", dept1: "경영학과", dept2: "경제학과", careersRaw: "금융 애널리스트, 투자분석가", track: "경영경제" },
+        { id: "7", stuNo: "2201", name: "정다은", dept1: "유아교육과", dept2: "아동학과", careersRaw: "초등교사, 아동심리학자", track: "교육" },
+        { id: "8", stuNo: "2202", name: "강현우", dept1: "컴퓨터공학과", dept2: "전기전자공학부", careersRaw: "임베디드 소프트웨어 엔지니어", track: "정보기술공학" },
+        { id: "9", stuNo: "3101", name: "유재혁", dept1: "경찰행정학과", dept2: "법학과", careersRaw: "경찰관, 과학수사관, 프로파일러", track: "법학행정" },
+        { id: "10", stuNo: "3102", name: "임수빈", dept1: "시각디자인학과", dept2: "산업디자인학과", careersRaw: "UI/UX 디자이너, 브랜드 크리에이터", track: "예술" },
+        { id: "11", stuNo: "3201", name: "이지호", dept1: "컴퓨터공학과", dept2: "경영학과", careersRaw: "기술창업자, 풀스택 개발자", track: "정보기술공학" },
+        { id: "12", stuNo: "3202", name: "서연우", dept1: "약학과", dept2: "화학공학과", careersRaw: "임상약사, 신약 개발 연구원", track: "의료보건" },
+        { id: "13", stuNo: "1203", name: "백준영", dept1: "정치외교학과", dept2: "언론정보학과", careersRaw: "외교관, 국제기구 활동가", track: "사회과학" },
+        { id: "14", stuNo: "2203", name: "임지민", dept1: "생명과학과", dept2: "화학과", careersRaw: "생명공학 연구원, 바이오 의약원", track: "자연과학" },
+        { id: "15", stuNo: "3103", name: "정은우", dept1: "건축학과", dept2: "환경공학과", careersRaw: "친환경 건축가, 도시설계자", track: "건축토목환경" }
+      ];
+
+      function App() {
+        // Core Database State
+        const [students, setStudents] = useState(initialMockStudents);
+        const [isFetchingLive, setIsFetchingLive] = useState(false);
+        const [liveError, setLiveError] = useState(null);
+        const [isSynced, setIsSynced] = useState(false);
+
+        // Filter States
+        const [selectedGrade, setSelectedGrade] = useState('all');
+        const [selectedClass, setSelectedClass] = useState('all');
+        const [selectedTrack, setSelectedTrack] = useState('all');
+        const [searchQuery, setSearchQuery] = useState('');
+
+        // Automatic retrieval upon load
+        useEffect(() => {
+          loadData();
+        }, []);
+
+        // Load data securely from Sheets using Google Apps Script's native RPC or fallback to API URL
+        const loadData = () => {
+          setIsFetchingLive(true);
+          setLiveError(null);
+          setIsSynced(false);
+
+          // 1. Google Apps Script Web App environment check
+          if (typeof google !== 'undefined' && google.script && google.script.run) {
+            google.script.run
+              .withSuccessHandler((data) => {
+                if (Array.isArray(data)) {
+                  if (data.length > 0) {
+                    const mapped = data.map((item, idx) => ({
+                      id: "live-" + idx + "-" + Date.now(),
+                      stuNo: String(item.stuNo || ''),
+                      name: String(item.name || ''),
+                      dept1: String(item.dept1 || ''),
+                      dept2: String(item.dept2 || ''),
+                      careersRaw: String(item.careersRaw || ''),
+                      track: String(item.track || '미등록'),
+                      submittedAt: String(item.submittedAt || ''),
+                      ref1: String(item.ref1 || ''),
+                      ref2: String(item.ref2 || ''),
+                      ref3: String(item.ref3 || ''),
+                      ref4: String(item.ref4 || ''),
+                      ref5: String(item.ref5 || '')
+                    }));
+                    setStudents(mapped);
+                    setIsSynced(true);
+                  } else {
+                    // If sheet is empty but fetching works, keep mock records with a small warning label
+                    setLiveError("구글 스프레드시트 내에 로적된 데이터가 없습니다. 기본 테스트 데이터를 계속 표시합니다.");
+                  }
+                } else {
+                  setLiveError("전달된 Google Spreadsheet 데이터가 올바른 배열 구조가 아닙니다.");
+                }
+                setIsFetchingLive(false);
+              })
+              .withFailureHandler((err) => {
+                console.error("GAS retrieval failed:", err);
+                setLiveError("실시간 시트 로드 실패: " + err.message + " (임시 예시 데이터를 표시합니다)");
+                setIsFetchingLive(false);
+              })
+              .getSpreadsheetData();
+            return;
+          }
+
+          // 2. Fallback direct API loader (only for external/standalone test purposes)
+          const fallbackUrl = 'https://script.google.com/macros/s/AKfycbyyes-cgsDp17FNZYk95fh6-eRCZkJlB2EesZEk8MucdqtXSSvKJSDJ_SwvZJbb_s6TEA/exec';
+          const separator = fallbackUrl.includes('?') ? '&' : '?';
+          
+          fetch(fallbackUrl + separator + 'api=true')
+            .then(res => {
+              if (!res.ok) throw new Error("HTTP 상태 에러: " + res.status);
+              return res.json();
+            })
+            .then(data => {
+              if (Array.isArray(data) && data.length > 0) {
+                const mapped = data.map((item, idx) => ({
+                  id: "fallback-" + idx + "-" + Date.now(),
+                  stuNo: String(item.stuNo || item.학번 || ''),
+                  name: String(item.name || item.이름 || ''),
+                  dept1: String(item.dept1 || item.희망학과1 || ''),
+                  dept2: String(item.dept2 || item.희망학과2 || ''),
+                  careersRaw: String(item.careersRaw || item.진로 || ''),
+                  track: String(item.track || item.계열 || '미등록'),
+                  submittedAt: String(item.submittedAt || item.작성시간 || ''),
+                  ref1: String(item.ref1 || item.참고1 || ''),
+                  ref2: String(item.ref2 || item.참고2 || ''),
+                  ref3: String(item.ref3 || item.참고3 || ''),
+                  ref4: String(item.ref4 || item.참고4 || ''),
+                  ref5: String(item.ref5 || item.참고5 || '')
+                }));
+                setStudents(mapped);
+                setIsSynced(true);
+              }
+              setIsFetchingLive(false);
+            })
+            .catch(err => {
+              console.log("Local development direct fetch warning:", err.message);
+              // Not critical, since we are using local state
+              setIsFetchingLive(false);
+            });
+        };
+
+        // Student list parsed with Grade & Class values derived from Student Number
+        const parsedStudents = useMemo(() => {
+          return students.map(s => {
+            const trimmed = String(s.stuNo || '').trim();
+            let grade = '기타';
+            let classNo = '기타';
+            if (trimmed.length >= 2) {
+              grade = trimmed.charAt(0);
+              classNo = trimmed.charAt(1);
+            }
+            return {
+              ...s,
+              grade,
+              classNo
+            };
+          });
+        }, [students]);
+
+        // Unique filter values calculations
+        const availableGrades = useMemo(() => {
+          const set = new Set();
+          parsedStudents.forEach(s => {
+            if (s.grade && s.grade !== '기타') set.add(s.grade);
+          });
+          return Array.from(set).sort();
+        }, [parsedStudents]);
+
+        const availableClasses = useMemo(() => {
+          const set = new Set();
+          parsedStudents.forEach(s => {
+            if (s.classNo && s.classNo !== '기타') set.add(s.classNo);
+          });
+          return Array.from(set).sort((a, b) => parseInt(a) - parseInt(b));
+        }, [parsedStudents]);
+
+        const availableTracks = useMemo(() => {
+          const set = new Set();
+          parsedStudents.forEach(s => {
+            if (s.track) set.add(s.track.trim());
+          });
+          return Array.from(set).sort();
+        }, [parsedStudents]);
+
+        // Selection filtering filter query
+        const filteredStudents = useMemo(() => {
+          return parsedStudents.filter(student => {
+            if (selectedGrade !== 'all' && student.grade !== selectedGrade) return false;
+            if (selectedClass !== 'all' && student.classNo !== selectedClass) return false;
+            if (selectedTrack !== 'all' && student.track !== selectedTrack) return false;
+            if (searchQuery.trim() !== '') {
+              const query = searchQuery.toLowerCase().trim();
+              const nameMatch = student.name.toLowerCase().includes(query);
+              const dept1Match = student.dept1.toLowerCase().includes(query);
+              const dept2Match = (student.dept2 || '').toLowerCase().includes(query);
+              const careerMatch = (student.careersRaw || '').toLowerCase().includes(query);
+              const stuNoMatch = student.stuNo.includes(query);
+              const ref1Match = (student.ref1 || '').toLowerCase().includes(query);
+              const ref2Match = (student.ref2 || '').toLowerCase().includes(query);
+              const ref3Match = (student.ref3 || '').toLowerCase().includes(query);
+              const ref4Match = (student.ref4 || '').toLowerCase().includes(query);
+              const ref5Match = (student.ref5 || '').toLowerCase().includes(query);
+
+              if (!nameMatch && !dept1Match && !dept2Match && !careerMatch && !stuNoMatch &&
+                  !ref1Match && !ref2Match && !ref3Match && !ref4Match && !ref5Match) {
+                return false;
+              }
+            }
+            return true;
+          });
+        }, [parsedStudents, selectedGrade, selectedClass, selectedTrack, searchQuery]);
+
+        // Graph item: Top 10 Careers (Using full custom HTML layout with flexible width)
+        const careerChartData = useMemo(() => {
+          const countMap = {};
+          filteredStudents.forEach(student => {
+            if (!student.careersRaw) return;
+            const parsedJobs = student.careersRaw.split(',').map(j => j.trim()).filter(j => j !== '');
+            parsedJobs.forEach(job => {
+              countMap[job] = (countMap[job] || 0) + 1;
+            });
+          });
+          const entries = Object.entries(countMap).map(([name, count]) => ({ name, count }));
+          return entries.sort((a, b) => b.count - a.count).slice(0, 10);
+        }, [filteredStudents]);
+
+        const maxCareerCount = useMemo(() => {
+          if (careerChartData.length === 0) return 1;
+          return Math.max(...careerChartData.map(item => item.count));
+        }, [careerChartData]);
+
+        // Graph item: Top 7 Departments + Others (Using Custom Lightweight SVG Donut Chart)
+        const deptChartData = useMemo(() => {
+          const countMap = {};
+          filteredStudents.forEach(student => {
+            const dept = student.dept1 ? student.dept1.trim() : '';
+            if (!dept) return;
+            countMap[dept] = (countMap[dept] || 0) + 1;
+          });
+          const entries = Object.entries(countMap).map(([name, count]) => ({ name, count }));
+          const sorted = entries.sort((a, b) => b.count - a.count);
+          const top10 = sorted.slice(0, 10);
+          if (sorted.length > 10) {
+            const othersCount = sorted.slice(10).reduce((acc, curr) => acc + curr.count, 0);
+            top10.push({ name: '기타 학과', count: othersCount });
+          }
+          return top10;
+        }, [filteredStudents]);
+
+        // Color palettes definitions
+        const colorsPalette = [
+          '#4f46e5', // indigo-600
+          '#3b82f6', // blue-500
+          '#10b981', // emerald-500
+          '#14b8a6', // teal-500
+          '#06b6d4', // cyan-500
+          '#f59e0b', // amber-500
+          '#ec4899', // pink-500
+          '#8b5cf6', // violet-500
+          '#f43f5e', // rose-500
+          '#0284c7', // sky-600
+          '#059669', // emerald-650
+          '#64748b'  // slate-500
+        ];
+
+        const deptDonutPaths = useMemo(() => {
+          const totalCount = deptChartData.reduce((acc, curr) => acc + curr.count, 0);
+          if (totalCount === 0) return [];
+          const r = 25;
+          const circumference = 2 * Math.PI * r; // ~157.08
+          let currentCircumference = 0;
+
+          return deptChartData.map((item, idx) => {
+            const percent = item.count / totalCount;
+            const strokeLength = percent * circumference;
+            const strokeOffset = circumference - currentCircumference;
+            currentCircumference += strokeLength;
+            return {
+              color: colorsPalette[idx % colorsPalette.length],
+              strokeLength,
+              strokeOffset,
+              circumference,
+              percent: Math.round(percent * 100)
+            };
+          });
+        }, [deptChartData]);
+
+        // Graph item: Track distributions map
+        const trackChartData = useMemo(() => {
+          const countMap = {};
+          filteredStudents.forEach(student => {
+            const trk = student.track ? student.track.trim() : '';
+            if (!trk || trk === '미정' || trk === '미등록' || trk === '-' || trk === '미분류' || trk.toLowerCase() === 'undefined') return;
+            countMap[trk] = (countMap[trk] || 0) + 1;
+          });
+          const entries = Object.entries(countMap).map(([name, count]) => ({ name, count }));
+          const sorted = entries.sort((a, b) => b.count - a.count);
+          return sorted.slice(0, 10);
+        }, [filteredStudents]);
+
+        return (
+          <div className="flex flex-col min-h-screen">
+            
+            {/* Upper Header Layout */}
+            <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm shrink-0">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="bg-indigo-600 text-white p-2.5 rounded-2xl shadow-lg shadow-indigo-100 flex items-center justify-center">
+                    {/* Database SVG */}
+                    <svg className="w-6 h-6 stroke-[2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <ellipse cx="12" cy="5" rx="9" ry="3" />
+                      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                      <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">진로 · 희망학과 실시간 대시보드</h1>
+                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider font-mono">Google Sheets Real-time System</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {isFetchingLive && (
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89H12" />
+                      </svg>
+                      동기화 중...
+                    </span>
+                  )}
+                  <button 
+                    onClick={loadData}
+                    disabled={isFetchingLive}
+                    className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold text-xs py-2 px-3 rounded-xl flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                  >
+                    <svg className={`w-3.5 h-3.5 ${isFetchingLive ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89H12" />
+                    </svg>
+                    새로고침
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            {/* Core Body */}
+            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+
+              {liveError && (
+                <div className="p-3.5 bg-rose-50 text-rose-700 border border-rose-250 rounded-xl text-xs leading-relaxed flex items-start gap-2">
+                  <svg className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{liveError}</span>
+                </div>
+              )}
+
+              {/* Bento Grid */}
+              <div className="grid grid-cols-12 gap-5">
+
+                {/* 1. Career Bar Chart Card inside Bento (Custom SVG, 100% stable) */}
+                <div className="col-span-12 lg:col-span-3 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col shadow-sm lg:h-[510px] border-t-2 border-t-indigo-500 hover:shadow-md transition-all">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                      <span className="w-2 h-4 bg-indigo-600 rounded-full"></span>
+                      가장 인기 있는 진로 Top 10
+                    </h3>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[315px] lg:max-h-[315px]">
+                    {careerChartData.length > 0 ? (
+                      careerChartData.map((item, idx) => {
+                        const widthPct = (item.count / maxCareerCount) * 100;
+                        return (
+                          <div key={item.name} className="space-y-1">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="font-bold text-slate-700 truncate max-w-[120px]">
+                                <span className="text-indigo-600 font-mono text-[10px] mr-1">#{idx+1}</span>{item.name}
+                              </span>
+                              <span className="font-bold text-slate-500">{item.count}명</span>
+                            </div>
+                            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                              <div 
+                                className="bg-indigo-600 h-full rounded-full transition-all duration-500 ease-out"
+                                style={{ width: `${widthPct}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs py-12">
+                        표출할 진로 통계 목록이 없습니다.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-3 mt-auto grid grid-cols-3 gap-1.5 shrink-0">
+                    {careerChartData.slice(0, 6).map((item, idx) => (
+                      <div key={item.name} className="flex flex-col bg-slate-50 px-1.5 py-1 rounded-lg border border-slate-100 text-center">
+                        <span className="text-[10px] font-bold text-indigo-600 truncate">#{idx + 1} {item.name}</span>
+                        <span className="text-xs font-black text-slate-700 mt-0.5">{item.count}명</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Department Donut Chart Card (High-Performance Zero-dependency native SVG) */}
+                <div className="col-span-12 lg:col-span-3 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col shadow-sm lg:h-[510px] border-t-2 border-t-amber-500 hover:shadow-md transition-all">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                      <span className="w-2 h-4 bg-amber-500 rounded-full"></span>
+                      희망학과 Top 10 구성 비율
+                    </h3>
+                    <span className="text-[10px] bg-amber-50 px-2 py-1 rounded font-bold text-amber-700 uppercase tracking-wider font-mono">1순위</span>
+                  </div>
+
+                  <div className="flex flex-col gap-3 flex-1 min-h-0">
+                    <div className="h-32 w-full flex justify-center items-center shrink-0">
+                      {deptChartData.length > 0 ? (
+                        <div className="relative w-28 h-28">
+                          <svg viewBox="0 0 64 64" className="w-full h-full transform -rotate-90">
+                            {/* Inner hole */}
+                            <circle cx="32" cy="32" r="21" fill="#ffffff" />
+                            {/* Pie segments */}
+                            {deptDonutPaths.map((segment, idx) => (
+                              <circle
+                                key={idx}
+                                cx="32"
+                                cy="32"
+                                r="21"
+                                fill="transparent"
+                                stroke={segment.color}
+                                strokeWidth="7.2"
+                                strokeDasharray={`${segment.strokeLength} ${segment.circumference - segment.strokeLength}`}
+                                strokeDashoffset={segment.strokeOffset}
+                                className="transition-all duration-300"
+                              />
+                            ))}
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center select-none pointer-events-none">
+                            <span className="text-[10px] text-slate-400 font-bold">인원합계</span>
+                            <span className="text-sm font-black text-slate-800">
+                              {deptChartData.reduce((acc, curr) => acc + curr.count, 0)}명
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs py-12">
+                          기록이 없습니다.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Detailed list with color legends */}
+                    <div className="space-y-1.5 overflow-y-auto pr-1 flex-1 min-h-[120px] max-h-[220px]">
+                      {deptChartData.map((item, idx) => {
+                        const segment = deptDonutPaths[idx];
+                        const pct = segment ? segment.percent : 0;
+                        return (
+                          <div key={item.name} className="flex items-center justify-between text-[11px] py-1 px-1.5 hover:bg-slate-50 class-rounded">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colorsPalette[idx % colorsPalette.length] }}></span>
+                              <span className="font-semibold text-slate-700 truncate">{item.name}</span>
+                            </div>
+                            <div className="flex items-center gap-1 font-medium text-slate-400 shrink-0">
+                              <span className="font-bold text-slate-900">{item.count}명</span>
+                              <span>({pct}%)</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-2 text-center text-[10px] text-slate-400 font-medium select-none mt-auto shrink-0">
+                    10위 밖의 학과는 <strong>'기타 학과'</strong>로 구성됩니다.
+                  </div>
+                </div>
+
+                {/* 3. Track distribution (Elegant native visual progress loaders) */}
+                <div className="col-span-12 lg:col-span-3 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col shadow-sm lg:h-[510px] border-t-2 border-t-violet-500 hover:shadow-md transition-all">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                      <span className="w-2 h-4 bg-violet-600 rounded-full"></span>
+                      희망 계열별 선호도 분포
+                    </h3>
+                  </div>
+
+                  <div className="flex-grow space-y-3 lg:space-y-2.5 overflow-y-auto pr-1 max-h-[400px] min-h-[180px]">
+                    {trackChartData.length > 0 ? (
+                      trackChartData.map((item, idx) => {
+                        const total = trackChartData.reduce((acc, curr) => acc + curr.count, 0);
+                        const percent = total > 0 ? Math.round((item.count / total) * 100) : 0;
+                        const trackColors = [
+                          { bg: 'bg-violet-500' },
+                          { bg: 'bg-indigo-500' },
+                          { bg: 'bg-emerald-500' },
+                          { bg: 'bg-amber-500' },
+                          { bg: 'bg-pink-500' },
+                          { bg: 'bg-cyan-500' },
+                          { bg: 'bg-rose-500' }
+                        ];
+                        const colorScheme = trackColors[idx % trackColors.length];
+
+                        return (
+                          <div key={item.name} className="space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="font-semibold text-slate-700 flex items-center gap-1.5 truncate">
+                                <span className={`w-1.5 h-1.5 rounded-full ${colorScheme.bg} shrink-0`}></span>
+                                <span className="truncate">{item.name}</span>
+                              </span>
+                              <div className="flex items-center gap-1 text-slate-400 font-medium shrink-0">
+                                <span className="font-bold text-slate-900">{item.count}명</span>
+                                <span>({percent}%)</span>
+                              </div>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full ${colorScheme.bg} rounded-full transition-all duration-500 ease-out`} 
+                                style={{ width: `${percent}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs py-12">
+                        계열 통계 기록이 없습니다.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. Controls filter container Card */}
+                <div className="col-span-12 lg:col-span-3 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:h-[510px] border-t-2 border-t-indigo-600 hover:shadow-md transition-all">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="bg-indigo-50 p-2 rounded-xl text-indigo-600">
+                          {/* Filter SVG */}
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                          </svg>
+                        </div>
+                        <h2 className="font-bold text-slate-800 text-sm">대시보드 필터</h2>
+                      </div>
+                      {(selectedGrade !== 'all' || selectedClass !== 'all' || selectedTrack !== 'all' || searchQuery !== '') && (
+                        <button 
+                          onClick={() => {
+                            setSelectedGrade('all');
+                            setSelectedClass('all');
+                            setSelectedTrack('all');
+                            setSearchQuery('');
+                          }}
+                          className="text-xs text-indigo-600 hover:text-indigo-850 flex items-center gap-1 font-semibold"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89H12" />
+                          </svg>
+                          초기화
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-3.5">
+                      {/* Grade Column */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 ml-1 mb-1.5 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> 학년
+                        </label>
+                        <select 
+                          value={selectedGrade}
+                          onChange={(e) => setSelectedGrade(e.target.value)}
+                          className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition cursor-pointer"
+                        >
+                          <option value="all">학년 (전체)</option>
+                          {availableGrades.map(g => (
+                            <option key={g} value={g}>{g}학년</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Class Column */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 ml-1 mb-1.5 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> 반
+                        </label>
+                        <select 
+                          value={selectedClass}
+                          onChange={(e) => setSelectedClass(e.target.value)}
+                          className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition cursor-pointer"
+                        >
+                          <option value="all">반 (전체)</option>
+                          {availableClasses.map(c => (
+                            <option key={c} value={c}>{c}반</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Searchbox text */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 ml-1 mb-1.5 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> 검색어 입력
+                        </label>
+                        <div className="relative">
+                          <input 
+                            type="text"
+                            placeholder="이름, 학과, 진로 검색어..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                          />
+                          <svg className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      {/* Track Column */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 ml-1 mb-1.5 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> 계열 구분
+                        </label>
+                        <select 
+                          value={selectedTrack}
+                          onChange={(e) => setSelectedTrack(e.target.value)}
+                          className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition cursor-pointer"
+                        >
+                          <option value="all">계열 (전체)</option>
+                          {availableTracks.map(t => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Detailed Table 명단 */}
+                <div className="col-span-12 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col border-t-2 border-t-slate-700">
+                  <div className="bg-slate-50/80 border-b border-slate-200 p-4 flex justify-between items-center shrink-0">
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-sm">학생별 상세 진로 현황 명단</h3>
+                      <p className="text-[10px] text-slate-400 mt-0.5">선택된 조건으로 필터링된 총 {filteredStudents.length}명의 데이터</p>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase font-mono bg-white px-2 py-1 rounded-md border border-slate-200/60">DATA GRID</span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50/40 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider select-none">
+                          <th className="px-4 py-3 whitespace-nowrap w-[8%] min-w-[90px]">학번</th>
+                          <th className="px-4 py-3 whitespace-nowrap w-[10%] min-w-[100px]">이름</th>
+                          <th className="px-4 py-3 text-indigo-600 font-bold whitespace-nowrap w-[12%] min-w-[110px]">희망학과 1지망</th>
+                          <th className="px-4 py-3 text-emerald-600 font-bold whitespace-nowrap w-[12%] min-w-[110px]">희망학과 2지망</th>
+                          <th className="px-4 py-3 whitespace-nowrap w-[18%] min-w-[140px]">진로 (상세)</th>
+                          <th className="px-4 py-3 text-left whitespace-nowrap w-[10%] min-w-[90px]">계열</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-xs divide-y divide-slate-100">
+                        {filteredStudents.length > 0 ? (
+                          filteredStudents.map((student) => (
+                            <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {student.stuNo ? (
+                                  <span className="font-mono text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200/70 px-2 py-0.5 rounded-md select-all">
+                                    {student.stuNo}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300 font-normal text-[10px] bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded select-none">미입력</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
+                                {student.name || (
+                                  <span className="text-slate-300 font-normal text-[10px] bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded select-none">미입력</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {student.dept1 ? (
+                                  <div className="flex items-center gap-1.5 font-semibold text-indigo-600">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
+                                    <span>{student.dept1}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-300 font-normal text-[10px] bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded select-none">미입력</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {student.dept2 && student.dept2.trim() ? (
+                                  <div className="flex items-center gap-1.5 font-medium text-emerald-600">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                                    <span>{student.dept2}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-300 font-normal text-[10px] bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded select-none">미입력</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 max-w-[280px]">
+                                <div className="flex flex-wrap gap-1">
+                                  {student.careersRaw && student.careersRaw.trim() ? (
+                                    student.careersRaw.split(',').map((job, idx) => {
+                                      const trimmed = job.trim();
+                                      if (!trimmed) return null;
+                                      return (
+                                        <span key={idx} className="px-2 py-0.5 bg-sky-50 text-sky-700 border border-sky-100/60 rounded text-[10px] font-bold whitespace-nowrap transition-all hover:bg-sky-100/80">
+                                          {trimmed}
+                                        </span>
+                                      );
+                                    })
+                                  ) : (
+                                    <span className="text-slate-300 font-normal text-[10px] bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded select-none">미입력</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-left whitespace-nowrap">
+                                {student.track && student.track !== '미등록' ? (
+                                  <span className="px-2 py-0.5 bg-violet-50 text-violet-600 border border-violet-100 font-bold rounded text-[10px]">
+                                    {student.track}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300 font-normal text-[10px] bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded select-none">미입력</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="text-center py-12">
+                              <div className="max-w-xs mx-auto">
+                                <svg className="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <h4 className="font-bold text-slate-700 text-xs">일치하는 학생 데이터가 없습니다</h4>
+                                <p className="text-[10px] text-slate-400 mt-0.5">드롭다운 검색 조건을 조절해 보세요.</p>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+            </main>
+
+            {/* Footer */}
+            <footer className="bg-white border-t border-slate-200 py-5 text-center text-xs text-slate-400 font-medium shrink-0">
+              <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+                <span>© 2026 진로 및 희망학과 실시간 대시보드</span>
+                <span className="text-slate-300 max-sm:hidden">|</span>
+                <span className="text-slate-500">Google Apps Script HTML5/Tailwind CSS 연동 대시보드</span>
+              </div>
+            </footer>
+
+          </div>
+        );
+      }
+
+      const rootElement = document.getElementById("root");
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(<App />);
+    </script>
+  </body>
+</html>
