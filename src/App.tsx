@@ -740,14 +740,7 @@ export default function App() {
 
       </main>
 
-      {/* Styled simple footer */}
-      <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400 font-medium">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-          <span>© 2026 진로 및 희망학과 실시간 대시보드</span>
-          <span className="text-slate-300 max-sm:hidden">|</span>
-          <span className="text-slate-500">Google Apps Script HTML5/Tailwind CSS/Recharts 연동 대시보드</span>
-        </div>
-      </footer>
+
 
     </div>
   );
