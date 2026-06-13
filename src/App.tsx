@@ -335,7 +335,7 @@ export default function App() {
         )}
 
         {/* Bento Grid layout */}
-        <div className="grid grid-cols-12 gap-5">
+        <div className="grid grid-cols-12 lg:grid-cols-11 gap-5">
 
           {/* Career Chart (Bar) */}
           <div className="col-span-12 lg:col-span-3 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col shadow-sm lg:h-[510px] border-t-2 border-t-indigo-500 hover:shadow-md transition-all">
@@ -352,7 +352,7 @@ export default function App() {
                   <ReBarChart 
                     data={careerChartData} 
                     layout="vertical"
-                    margin={{ top: 5, right: 15, left: -20, bottom: 5 }}
+                    margin={{ top: 5, right: 15, left: -5, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                     <XAxis 
@@ -364,7 +364,7 @@ export default function App() {
                     <YAxis 
                       type="category"
                       dataKey="name" 
-                      width={65}
+                      width={90}
                       tickLine={false} 
                       style={{ fontSize: '10px', fontWeight: 600, fill: '#475569' }}
                     />
@@ -532,7 +532,7 @@ export default function App() {
           </div>
 
           {/* Filters Card (Positioned to the right of the Track diagram) */}
-          <div className="col-span-12 lg:col-span-3 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:h-[510px] border-t-2 border-t-indigo-600 hover:shadow-md transition-all">
+          <div className="col-span-12 lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:h-[510px] border-t-2 border-t-indigo-600 hover:shadow-md transition-all">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -640,7 +640,6 @@ export default function App() {
                 <h3 className="font-bold text-slate-800 text-sm">학생별 상세 진로 현황 명단</h3>
                 <p className="text-[10px] text-slate-400 mt-0.5">사용자 필터 및 키워드 검색 결과 명단</p>
               </div>
-              <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase font-mono bg-white px-2 py-1 rounded-md border border-slate-200/60">Live Data Sync</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
