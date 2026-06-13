@@ -214,17 +214,41 @@ export default function App() {
       const targetUrl = `${cleanedUrl}${separator}api=true`;
       
       const proxyUrl = `/api/proxy?url=${encodeURIComponent(targetUrl)}`;
-      const response = await fetch(proxyUrl);
+      
+      let response: Response;
+      let usedDirectFallback = false;
+      let originalProxyStatus: number | null = null;
+      
+      try {
+        response = await fetch(proxyUrl);
+        if (response.status === 404) {
+          originalProxyStatus = 404;
+          // Fallback to direct client-side fetch (for static sites like GitHub Pages without an Express backend)
+          usedDirectFallback = true;
+          response = await fetch(targetUrl);
+        }
+      } catch (proxyError) {
+        // Fallback to direct fetch on network/CORS error for the proxy route
+        usedDirectFallback = true;
+        response = await fetch(targetUrl);
+      }
       
       let data;
       if (!response.ok) {
         let errMsg = `HTTP 에러! 상태 코드: ${response.status}`;
-        try {
-          const errData = await response.json();
-          if (errData && errData.error) {
-            errMsg = errData.error;
+        if (usedDirectFallback) {
+          errMsg += ` (구글 앱스 스크립트 웹앱 직접 호출 실패)`;
+          if (originalProxyStatus === 404) {
+            errMsg += ` [GitHub Pages 등 정적 서버 환경 감지 - /api/proxy 미존재]`;
           }
-        } catch {}
+        } else {
+          try {
+            const errData = await response.json();
+            if (errData && errData.error) {
+              errMsg = errData.error;
+            }
+          } catch {}
+        }
         throw new Error(errMsg);
       } else {
         data = await response.json();
